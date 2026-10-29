@@ -55,6 +55,11 @@ dependencies {
     // TFC is not published to its own Maven; Modrinth's Maven serves the release jars (project ID : version ID).
     compileOnly("maven.modrinth:${prop("deps.tfc_project")}:${prop("deps.tfc_version_id")}")
     runtimeOnly("maven.modrinth:${prop("deps.tfc_project")}:${prop("deps.tfc_version_id")}")
+
+    // Optional: compile-only so the addon loads without it. Guard every use behind ModList.isLoaded("tfchotornot").
+    // It is not on the dev runtime classpath, so the default runs exercise the "without" path;
+    // to test "with", drop its jar (and its tfcregistryapi dependency) into run/mods.
+    compileOnly("maven.modrinth:${prop("deps.hon_project")}:${prop("deps.hon_version_id")}")
 }
 
 tasks.processResources {
@@ -64,6 +69,7 @@ tasks.processResources {
         "mod_version" to prop("mod.version"),
         "cinematic_range" to prop("deps.cinematic_range"),
         "tfc_range" to prop("deps.tfc_range"),
+        "hon_range" to prop("deps.hon_range"),
         "minecraft_version" to prop("deps.minecraft"),
     )
     inputs.properties(values)

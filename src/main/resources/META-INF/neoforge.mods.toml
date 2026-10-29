@@ -35,3 +35,10 @@ type="required"
 versionRange="${tfc_range}"
 ordering="AFTER"
 side="BOTH"
+
+[[dependencies.${mod_id}]]
+modId="tfchotornot"
+type="optional"
+versionRange="${hon_range}"
+ordering="AFTER"
+side="BOTH"
