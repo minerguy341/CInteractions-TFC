@@ -29,4 +29,9 @@ versionRange="${cinematic_range}"
 ordering="AFTER"
 side="BOTH"
 
-# TODO: add a required `tfc` dependency once the TFC compile dependency is wired up.
+[[dependencies.${mod_id}]]
+modId="tfc"
+type="required"
+versionRange="${tfc_range}"
+ordering="AFTER"
+side="BOTH"

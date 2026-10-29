@@ -12,6 +12,13 @@ group = prop("mod.group")
 base.archivesName = "CInteractions-TFC-NeoForge-${prop("deps.minecraft")}"
 java.toolchain.languageVersion = JavaLanguageVersion.of(prop("mod.java").toInt())
 
+repositories {
+    exclusiveContent {
+        forRepository { maven("https://api.modrinth.com/maven") { name = "Modrinth" } }
+        filter { includeGroup("maven.modrinth") }
+    }
+}
+
 neoForge {
     version = prop("deps.neoforge")
 
@@ -45,7 +52,9 @@ dependencies {
     // Needed in the dev runs so the host mod actually loads.
     runtimeOnly(files("libs/${prop("deps.cinematic_jar")}"))
 
-    // TODO: TerraFirmaCraft 4.2.x for NeoForge 1.21.1 (add its Maven repo/coordinates once confirmed).
+    // TFC is not published to its own Maven; Modrinth's Maven serves the release jars (project ID : version ID).
+    compileOnly("maven.modrinth:${prop("deps.tfc_project")}:${prop("deps.tfc_version_id")}")
+    runtimeOnly("maven.modrinth:${prop("deps.tfc_project")}:${prop("deps.tfc_version_id")}")
 }
 
 tasks.processResources {
@@ -54,6 +63,7 @@ tasks.processResources {
         "mod_name" to prop("mod.name"),
         "mod_version" to prop("mod.version"),
         "cinematic_range" to prop("deps.cinematic_range"),
+        "tfc_range" to prop("deps.tfc_range"),
         "minecraft_version" to prop("deps.minecraft"),
     )
     inputs.properties(values)
