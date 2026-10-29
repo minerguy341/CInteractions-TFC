@@ -48,6 +48,10 @@ Code: `AnvilScene` (client), `AnvilStations` (registers every `tfc:rock/anvil/*`
 - Tongs: found by registry id (`tfchotornot` namespace, path contains `tongs`) in either hand, no Hot or Not classes touched. Without Hot or Not nothing is drawn. Drawn as the extruded item model for now.
 - Not verified in game: nothing has been run. Geometry constants (`TOP`, zone sizes, tongs/hammer orientation) will need tuning.
 
+## Findings from first in-game test
+- Symptom: the hands pushed out and the player stepped away right after the intro. Cause: CI opens a station's menu server-side via `BlockState.getMenuProvider` with no extra data (`MenuActions.open`). TFC's anvil block has no menu provider (the block entity opens the menu itself with the block position as open-screen data), so CI closed the session. Fix: `MenuActionsMixin` opens it the TFC way (`player.openMenu(anvilBlockEntity, pos)`) for TFC anvils only. Proper long-term fix is an upstream CI API hook for menu opening; candidate PR to the host repo.
+- TFC requires Patchouli (>= 1.21.1-92), so dev runs add it as `runtimeOnly`.
+
 ## Open
 - Jaw clamping (tongs model per item type) and holding the ingot visibly in the tongs.
 - Hammer swing timing against the server result; impact sparks/sounds.

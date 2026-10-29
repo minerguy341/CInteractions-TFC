@@ -56,6 +56,9 @@ dependencies {
     compileOnly("maven.modrinth:${prop("deps.tfc_project")}:${prop("deps.tfc_version_id")}")
     runtimeOnly("maven.modrinth:${prop("deps.tfc_project")}:${prop("deps.tfc_version_id")}")
 
+    // TFC's mandatory dependency; dev runs fail to load without it.
+    runtimeOnly("maven.modrinth:${prop("deps.patchouli_project")}:${prop("deps.patchouli_version_id")}")
+
     // Optional: compile-only so the addon loads without it. Guard every use behind ModList.isLoaded("tfchotornot").
     // It is not on the dev runtime classpath, so the default runs exercise the "without" path;
     // to test "with", drop its jar (and its tfcregistryapi dependency) into run/mods.

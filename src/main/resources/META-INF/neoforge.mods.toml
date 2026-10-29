@@ -8,6 +8,9 @@ version="${mod_version}"
 displayName="${mod_name}"
 description='''First-person Cinematic Interactions scenes for TerraFirmaCraft workstations.'''
 
+[[mixins]]
+config="cinteractions_tfc.mixins.json"
+
 [[dependencies.${mod_id}]]
 modId="neoforge"
 type="required"
