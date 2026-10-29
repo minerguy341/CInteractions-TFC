@@ -22,6 +22,21 @@ Target: Minecraft 1.21.1, NeoForge, TFC 4.2.12, Cinematic Interactions 0.18.12+ 
 - A floating panel is the placeholder while other scene elements are built.
 - Final presentation (work bar, goal, the 3 rule requirements): options being decided, see the chat/PR notes.
 
+### Chosen: hybrid (v1)
+- Etched ruler along the anvil face edge with a slider (current work) and chalk tick (goal).
+- Three rule pips on the tong shaft (third-last, second-last, last); they light as each rule is met.
+- Hover tags naming the action and its effect (for example "Bend +7").
+- Floating panel stays as a toggleable fallback (and is the only display without HoN, since the pips need tongs).
+
+### Future config styles (not built yet)
+Selectable via client config later:
+1. Scribed anvil face: ruler plus three rule glyphs chalked into the face, no floating UI.
+2. Smith's tally slate: in-world slate beside the anvil with the ruler graph and rule icons.
+3. Workpiece as gauge: ingot lengthens/shortens, translucent ghost of the goal, three ember pips on the anvil edge.
+4. Minimal hover-driven: only hover tags plus a three-step chain shown mid-sequence.
+
+## TFC forging actions (verified from `tfc` 4.2.12 lang keys)
+`tfc.enum.forgestep.*`: hit, hit_light, hit_medium, hit_hard, draw, punch, bend, upset, shrink. Plain `hit` is only a rule value (matches any strength); the player performs light/medium/hard as three separate actions. So six action families: hit (three strengths), draw, punch, bend, upset, shrink. Rule ordering lives in `ForgeRule` / `ForgeRule$Order`; steps in `ForgeSteps`.
+
 ## Open
-- Zone-to-action mapping and how hit strength (light/medium/hard) is chosen.
-- Final plan UI option.
+- Zone-to-action mapping and how the hit strength is chosen (the three strengths are separate actions in TFC).
