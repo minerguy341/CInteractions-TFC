@@ -38,5 +38,19 @@ Selectable via client config later:
 ## TFC forging actions (verified from `tfc` 4.2.12 lang keys)
 `tfc.enum.forgestep.*`: hit, hit_light, hit_medium, hit_hard, draw, punch, bend, upset, shrink. Plain `hit` is only a rule value (matches any strength); the player performs light/medium/hard as three separate actions. So six action families: hit (three strengths), draw, punch, bend, upset, shrink. Rule ordering lives in `ForgeRule` / `ForgeRule$Order`; steps in `ForgeSteps`.
 
+## Implementation status (v0.1 anvil scene)
+Code: `AnvilScene` (client), `AnvilStations` (registers every `tfc:rock/anvil/*` and `tfc:metal/anvil/*` block, one scene id each), `AnvilConfig` (client config), `Tongs`, `HeatLook`.
+- Every blow is TFC's own `ScreenButtonPacket(ForgeStep.ordinal())`; PLAN_ID (8) opens TFC's plan screen on right-click. Server menu keeps authority. Step deltas: hit light/medium/hard -3/-6/-9, draw -15, punch +2, bend +7, upset +13, shrink +16.
+- Hover zones on the workpiece (u along anvil, v towards player): left end upset, right end shrink, centre dot punch, front half draw, back half bend, middle band hit.
+- Hit strength: mouse wheel (done). `hitControl = HOLD_CHARGE` exists in the config but is not implemented; it currently behaves like the wheel.
+- Config (`cinteractions_tfc-client.toml`): `hitControl`, `heatGauge` (default off), `planPanel` (default on).
+- Heat: translucent glow quad over the ingot coloured from `Heat.getHeat(temp)`; optional text gauge. Work needs `HeatCapability.view(stack).canWork()` and a hammer in the hammer slot, otherwise the click is denied.
+- Tongs: found by registry id (`tfchotornot` namespace, path contains `tongs`) in either hand, no Hot or Not classes touched. Without Hot or Not nothing is drawn. Drawn as the extruded item model for now.
+- Not verified in game: nothing has been run. Geometry constants (`TOP`, zone sizes, tongs/hammer orientation) will need tuning.
+
 ## Open
-- Zone-to-action mapping and how the hit strength is chosen (the three strengths are separate actions in TFC).
+- Jaw clamping (tongs model per item type) and holding the ingot visibly in the tongs.
+- Hammer swing timing against the server result; impact sparks/sounds.
+- Hybrid plan UI: etched ruler, tong-shaft pips (panel is the placeholder).
+- HOLD_CHARGE hit control.
+- Sides the scene is usable from (currently all four) and the exact anvil top height.

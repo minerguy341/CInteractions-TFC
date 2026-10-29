@@ -1,10 +1,12 @@
 package io.github.minerguy341.cinteractionstfc;
 
+import io.github.minerguy341.cinteractionstfc.client.CInteractionsTfcClient;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.loading.FMLEnvironment;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.fml.config.ModConfig;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.fml.loading.FMLEnvironment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,18 +15,13 @@ public final class CInteractionsTfc {
     public static final String MOD_ID = "cinteractions_tfc";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
-    public CInteractionsTfc(IEventBus modBus) {
+    public CInteractionsTfc(IEventBus modBus, ModContainer container) {
+        container.registerConfig(ModConfig.Type.CLIENT, AnvilConfig.SPEC);
         modBus.addListener(this::common);
-        if (FMLEnvironment.dist.isClient()) modBus.addListener(this::client);
+        if (FMLEnvironment.dist.isClient()) modBus.addListener(CInteractionsTfcClient::setup);
     }
 
     private void common(FMLCommonSetupEvent event) {
-        // AddonStations.register(...) for TFC blocks goes here (both sides).
-        LOGGER.info("Common setup");
-    }
-
-    private void client(FMLClientSetupEvent event) {
-        // AddonScenes.register(...) for the matching scenes goes here (client only).
-        LOGGER.info("Client setup");
+        event.enqueueWork(AnvilStations::registerCommon);
     }
 }
