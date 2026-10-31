@@ -52,6 +52,9 @@ Code: `AnvilScene` (client), `AnvilStations` (registers every `tfc:rock/anvil/*`
 - Symptom: the hands pushed out and the player stepped away right after the intro. Cause: CI opens a station's menu server-side via `BlockState.getMenuProvider` with no extra data (`MenuActions.open`). TFC's anvil block has no menu provider (the block entity opens the menu itself with the block position as open-screen data), so CI closed the session. Fix: `MenuActionsMixin` opens it the TFC way (`player.openMenu(anvilBlockEntity, pos)`) for TFC anvils only. Proper long-term fix is an upstream CI API hook for menu opening; candidate PR to the host repo.
 - TFC requires Patchouli (>= 1.21.1-92), so dev runs add it as `runtimeOnly`.
 
+- Hot or Not cannot load in a Gradle dev run. Its dependency TFC Registry API (`tfcregistryapi.util.Helpers.discoverRegistryEnums`) calls `FileSystems.newFileSystem` on the file path of every loaded mod, which throws `ProviderNotFoundException` for NeoForge/Minecraft/this mod's dev paths (it crashed from both the Gradle classpath and `run/mods`). So `runClient` is the "without Hot or Not" path; for the "with" path run `./gradlew stageRealMods` and copy `build/real-mods/*.jar` into a NeoForge 1.21.1 instance's `mods` folder in a normal launcher (the set: this addon, CI, TFC, Patchouli, Hot or Not, TFC Registry API).
+- First in-game result after the mixin: the exit animation no longer plays immediately.
+
 ## Open
 - Jaw clamping (tongs model per item type) and holding the ingot visibly in the tongs.
 - Hammer swing timing against the server result; impact sparks/sounds.

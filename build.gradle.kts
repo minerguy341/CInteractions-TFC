@@ -46,6 +46,11 @@ neoForge {
     }
 }
 
+val devMods by configurations.creating {
+    isCanBeConsumed = false
+    isTransitive = false
+}
+
 dependencies {
     // Cinematic Interactions ships the addon API inside its own jar; compile against it, never bundle it.
     compileOnly(files("libs/${prop("deps.cinematic_jar")}"))
@@ -59,10 +64,26 @@ dependencies {
     // TFC's mandatory dependency; dev runs fail to load without it.
     runtimeOnly("maven.modrinth:${prop("deps.patchouli_project")}:${prop("deps.patchouli_version_id")}")
 
-    // Optional: compile-only so the addon loads without it. Guard every use behind ModList.isLoaded("tfchotornot").
-    // It is not on the dev runtime classpath, so the default runs exercise the "without" path;
-    // to test "with", drop its jar (and its tfcregistryapi dependency) into run/mods.
+    // Optional for players, so the addon never links against it and works without it (tongs are found by registry id).
     compileOnly("maven.modrinth:${prop("deps.hon_project")}:${prop("deps.hon_version_id")}")
+
+    // Jars for a real launcher instance (see stageRealMods): everything the addon needs at runtime, Hot or Not included.
+    devMods("maven.modrinth:${prop("deps.tfc_project")}:${prop("deps.tfc_version_id")}")
+    devMods("maven.modrinth:${prop("deps.patchouli_project")}:${prop("deps.patchouli_version_id")}")
+    devMods("maven.modrinth:${prop("deps.hon_project")}:${prop("deps.hon_version_id")}")
+    devMods("maven.modrinth:${prop("deps.tfcregistry_project")}:${prop("deps.tfcregistry_version_id")}")
+}
+
+// Hot or Not cannot load in a Gradle dev run: its dependency TFC Registry API opens the jar of every loaded mod as a
+// zip filesystem, which fails for NeoForge/Minecraft/this mod in dev (ProviderNotFoundException). So the "with Hot or
+// Not" path is tested in a normal launcher: `./gradlew stageRealMods` collects every jar a NeoForge 1.21.1 instance needs
+// into build/real-mods (drop them into the instance's mods folder). `runClient` stays the "without Hot or Not" path.
+val stageRealMods by tasks.registering(Copy::class) {
+    dependsOn(tasks.jar)
+    from(tasks.jar)
+    from(devMods)
+    from(file("libs/${prop("deps.cinematic_jar")}"))
+    into(layout.buildDirectory.dir("real-mods"))
 }
 
 tasks.processResources {
