@@ -49,6 +49,9 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
     private static final float HAMMER_SIZE = 0.42f;
     private static final float TONGS_SIZE = 0.45f;
     private static final float HAMMER_REST_TILT = 25f;
+    /** Where the hammer lies on the anvil (u along the anvil, v towards the player) and the pick-up timing in seconds. */
+    private static final double HOME_U = 0.17, HOME_V = -0.03;
+    private static final double REACH_END = 0.40, GRAB_END = 0.58, PICKUP_SECONDS = 1.0;
     private static final ForgeStep[] HITS = {ForgeStep.HIT_LIGHT, ForgeStep.HIT_MEDIUM, ForgeStep.HIT_HARD};
 
     private static final int SLOT_MAIN = 0, SLOT_SECOND = 1, SLOT_HAMMER = 2, SLOT_CATALYST = 3;
@@ -60,6 +63,8 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
     private int strength = 1;
     private Vec3 handPos;
     private double strikeAt = -10;
+    private double pickupAt = -1;
+    private boolean hadHammer;
 
     public AnvilScene(BlockPos pos, Direction side) {
         super(pos, side, AnvilContainer.class, 2);
@@ -225,20 +230,84 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
             Vec3 tip = at(held ? -HALF_LENGTH - 0.05 : -0.36, 0.0, held ? 0.06 : 0.02);
             ItemPlacer.drawOriented(pose, buffers, cam, tongs, tip, lying, TONGS_SIZE, light);
         }
+        drawHammer(pose, buffers, cam, light);
     }
 
     @Override public void renderWorld(PoseStack pose, MultiBufferSource buffers, Vec3 camera, int light) {
         SceneVisibility.mark(pos);
+    }
+
+    // ---- the hammer: lying on the anvil, picked up, then in the right hand -------------------------------
+
+    /** Where TFC lays the hammer on the anvil before anyone works there: near the right end, handle towards the player. */
+    private Vec3 hammerHome() {
+        return at(HOME_U, HOME_V, 0.02);
+    }
+
+    private static double ease(double x) {
+        double c = Mth.clamp(x, 0, 1);
+        return c * c * (3 - 2 * c);
+    }
+
+    private static Vec3 lerp(Vec3 a, Vec3 b, double f) {
+        return a.add(b.subtract(a).scale(f));
+    }
+
+    /** True from the moment the hammer is picked up until the hand is back at rest with it. */
+    private boolean pickingUp() {
+        return pickupAt >= 0 && now() - pickupAt < PICKUP_SECONDS && !slot(SLOT_HAMMER).isEmpty();
+    }
+
+    /** The right hand while it reaches over the hammer, closes on it and lifts it away. */
+    private Vec3 pickupHand(double t) {
+        Vec3 home = hammerHome();
+        Vec3 above = home.add(0, 0.09, 0);
+        Vec3 grip = home.add(0, 0.035, 0);
+        if (t < REACH_END) return lerp(rest(true), above, ease(t / REACH_END));
+        if (t < GRAB_END) return lerp(above, grip, ease((t - REACH_END) / (GRAB_END - REACH_END)));
+        return lerp(grip, rest(true), ease((t - GRAB_END) / (PICKUP_SECONDS - GRAB_END)));
+    }
+
+    @Override public void tick() {
+        super.tick();
+        boolean has = !slot(SLOT_HAMMER).isEmpty();
+        if (has && !hadHammer) pickupAt = now(); // the scene just began with a hammer, or one was just put on the anvil
+        hadHammer = has;
+    }
+
+    @Override public Vec3[] handsOverride() {
+        if (!pickingUp()) return null;
+        return new Vec3[] {pickupHand(now() - pickupAt), rest(false)};
+    }
+
+    @Override public double handsStiffness() {
+        return pickingUp() ? 16 : super.handsStiffness();
+    }
+
+    private void drawHammer(PoseStack pose, MultiBufferSource buffers, Vec3 cam, int light) {
         ItemStack hammer = slot(SLOT_HAMMER);
         if (hammer.isEmpty()) return;
-        double t = Mth.clamp((now() - strikeAt) / SWING_SECONDS, 0, 1);
-        // Raise then drop: 0 at rest and at the strike, peaking midway.
-        double raise = swinging() ? Math.sin(t * Math.PI) * 0.18 : 0;
-        Vec3 grip = (handPos != null ? handPos : rest(true)).add(0, raise, 0);
-        // Degrees tipped up from lying flat: held up at rest, lifted further mid-swing, back down at the strike.
-        float tiltDegrees = (float) (HAMMER_REST_TILT + (swinging() ? Math.sin(t * Math.PI) * 40 : 0));
-        Quaternionf rotation = ItemPlacer.lying(ItemPlacer.awayYaw(side), tiltDegrees);
-        ItemPlacer.drawOriented(pose, buffers, camera, hammer, grip, rotation, HAMMER_SIZE, light);
+        float yaw = ItemPlacer.awayYaw(side);
+        Vec3 centre;
+        float tiltDegrees;
+        double t = pickupAt < 0 ? -1 : now() - pickupAt;
+        if (t < GRAB_END) {
+            // Still lying where TFC puts it (also the whole intro, before the first tick).
+            centre = hammerHome();
+            tiltDegrees = 0;
+        } else if (t < PICKUP_SECONDS) {
+            // Lifted with the hand, tipping up from flat.
+            double a = ease((t - GRAB_END) / (PICKUP_SECONDS - GRAB_END));
+            centre = lerp(hammerHome(), pickupHand(t).add(0, -0.02, 0), a);
+            tiltDegrees = (float) (HAMMER_REST_TILT * a);
+        } else {
+            double s = Mth.clamp((now() - strikeAt) / SWING_SECONDS, 0, 1);
+            // Raise then drop: 0 at rest and at the strike, peaking midway.
+            double raise = swinging() ? Math.sin(s * Math.PI) * 0.18 : 0;
+            centre = (handPos != null ? handPos : rest(true)).add(0, raise, 0);
+            tiltDegrees = (float) (HAMMER_REST_TILT + (swinging() ? Math.sin(s * Math.PI) * 40 : 0));
+        }
+        ItemPlacer.drawOriented(pose, buffers, cam, hammer, centre, ItemPlacer.lying(yaw, tiltDegrees), HAMMER_SIZE, light);
     }
 
     /** A translucent quad over the workpiece, coloured by TFC's heat level. */
