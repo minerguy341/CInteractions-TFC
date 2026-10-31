@@ -1,0 +1,12 @@
+modLoader="javafml"
+loaderVersion="[4,)"
+license="MIT"
+
+[[mods]]
+modId="cinteractions_tfc_devfix"
+version="0.0.0"
+displayName="CInteractions-TFC dev fix (dev runs only)"
+description='''Lets TFC Registry API load in a Gradle dev run. Not part of the release jar.'''
+
+[[mixins]]
+config="cinteractions_tfc.devfix.mixins.json"

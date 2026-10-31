@@ -19,6 +19,11 @@ repositories {
     }
 }
 
+// Dev-only mod holding the TFC Registry API workaround (see copyDevMods). Its own source set, so it never reaches the release jar.
+val devfix: SourceSet = sourceSets.create("devfix") {
+    compileClasspath += sourceSets.main.get().compileClasspath
+}
+
 neoForge {
     version = prop("deps.neoforge")
 
@@ -43,10 +48,18 @@ neoForge {
         register(modId) {
             sourceSet(sourceSets.main.get())
         }
+        register("cinteractions_tfc_devfix") {
+            sourceSet(devfix)
+        }
     }
 }
 
 val devMods by configurations.creating {
+    isCanBeConsumed = false
+    isTransitive = false
+}
+// Hot or Not and its mandatory TFC Registry API, copied into run/mods for the dev runs.
+val devRunMods by configurations.creating {
     isCanBeConsumed = false
     isTransitive = false
 }
@@ -72,12 +85,28 @@ dependencies {
     devMods("maven.modrinth:${prop("deps.patchouli_project")}:${prop("deps.patchouli_version_id")}")
     devMods("maven.modrinth:${prop("deps.hon_project")}:${prop("deps.hon_version_id")}")
     devMods("maven.modrinth:${prop("deps.tfcregistry_project")}:${prop("deps.tfcregistry_version_id")}")
+
+    devRunMods("maven.modrinth:${prop("deps.hon_project")}:${prop("deps.hon_version_id")}")
+    devRunMods("maven.modrinth:${prop("deps.tfcregistry_project")}:${prop("deps.tfcregistry_version_id")}")
 }
 
-// Hot or Not cannot load in a Gradle dev run: its dependency TFC Registry API opens the jar of every loaded mod as a
-// zip filesystem, which fails for NeoForge/Minecraft/this mod in dev (ProviderNotFoundException). So the "with Hot or
-// Not" path is tested in a normal launcher: `./gradlew stageRealMods` collects every jar a NeoForge 1.21.1 instance needs
-// into build/real-mods (drop them into the instance's mods folder). `runClient` stays the "without Hot or Not" path.
+// TFC Registry API (Hot or Not's dependency) opens the jar of every loaded mod as a zip filesystem, which throws
+// ProviderNotFoundException for NeoForge/Minecraft/this project in a Gradle dev run. The devfix mod (src/devfix) makes
+// it skip non-jar mods, and the two jars load from run/mods like in a real instance.
+// `-PwithoutHotOrNot` removes them to exercise the "without Hot or Not" path.
+val copyDevMods by tasks.registering {
+    val modsDir = file("run/mods")
+    val without = hasProperty("withoutHotOrNot")
+    inputs.files(devRunMods)
+    doLast {
+        modsDir.mkdirs()
+        modsDir.listFiles { f -> f.name.startsWith("devmod-") }?.forEach { it.delete() }
+        if (!without) devRunMods.files.forEach { it.copyTo(File(modsDir, "devmod-${it.name}"), overwrite = true) }
+    }
+}
+tasks.matching { it.name == "runClient" || it.name == "runServer" }.configureEach { dependsOn(copyDevMods) }
+
+// `./gradlew stageRealMods` collects every jar a normal NeoForge 1.21.1 launcher instance needs into build/real-mods.
 val stageRealMods by tasks.registering(Copy::class) {
     dependsOn(tasks.jar)
     from(tasks.jar)

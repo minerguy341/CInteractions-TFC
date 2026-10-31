@@ -1,0 +1,9 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "io.github.minerguy341.cinteractionstfc.devfix",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "RegistryApiDevFixMixin"
+  ]
+}
