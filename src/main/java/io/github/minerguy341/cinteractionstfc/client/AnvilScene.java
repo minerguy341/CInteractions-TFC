@@ -42,11 +42,13 @@ import org.joml.Quaternionf;
  * and the mouse wheel picks the strength of a Hit.
  */
 public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
-    /** Height of the working face above the block centre; tune against the anvil models in game. */
-    private static final double TOP = 0.30;
     private static final double HALF_LENGTH = 0.30;
     private static final double HALF_WIDTH = 0.10;
     private static final double SWING_SECONDS = 0.28;
+    /** Edge lengths in blocks (ItemPlacer.drawOriented takes world size; a flat ingot is about 0.2). */
+    private static final float HAMMER_SIZE = 0.42f;
+    private static final float TONGS_SIZE = 0.45f;
+    private static final float HAMMER_REST_TILT = 25f;
     private static final ForgeStep[] HITS = {ForgeStep.HIT_LIGHT, ForgeStep.HIT_MEDIUM, ForgeStep.HIT_HARD};
 
     private static final int SLOT_MAIN = 0, SLOT_SECOND = 1, SLOT_HAMMER = 2, SLOT_CATALYST = 3;
@@ -54,7 +56,6 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
     /** Where on the workpiece the cursor is. */
     private enum Zone { HIT, DRAW, BEND, PUNCH, UPSET, SHRINK }
 
-    private final Vec3 top;
     private Zone zone;
     private int strength = 1;
     private Vec3 handPos;
@@ -62,25 +63,29 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
 
     public AnvilScene(BlockPos pos, Direction side) {
         super(pos, side, AnvilContainer.class, 2);
-        top = Vec3.atCenterOf(pos).add(0, TOP, 0);
     }
 
     // ---- geometry ---------------------------------------------------------------------------------------
 
-    /** A point on the working face: {@code u} along the anvil (to the player's right), {@code v} towards the player. */
-    private Vec3 at(double u, double v, double lift) {
-        return top.add(right().scale(u)).add(side().scale(v)).add(0, lift, 0);
+    /** The centre of the working face; the height is a client config value so it can be tuned without a rebuild. */
+    private Vec3 top() {
+        return Vec3.atCenterOf(pos).add(0, AnvilConfig.TOP_OFFSET.get(), 0);
     }
 
-    @Override public Vec3 center() { return top; }
+    /** A point on the working face: {@code u} along the anvil (to the player's right), {@code v} towards the player. */
+    private Vec3 at(double u, double v, double lift) {
+        return top().add(right().scale(u)).add(side().scale(v)).add(0, lift, 0);
+    }
+
+    @Override public Vec3 center() { return top(); }
 
     @Override public List<Vec3> approach(LocalPlayer player) {
-        Vec3 stand = top.add(side().scale(0.9));
+        Vec3 stand = top().add(side().scale(0.9));
         return List.of(new Vec3(stand.x, player.getY(), stand.z));
     }
 
     @Override public CameraRig.Pose lean() {
-        return new CameraRig.Pose(top.add(side().scale(0.8)).add(0, 0.7, 0), side.getOpposite().toYRot(), 36, 0);
+        return new CameraRig.Pose(top().add(side().scale(AnvilConfig.CAMERA_BACK.get())).add(0, AnvilConfig.CAMERA_HEIGHT.get(), 0), side.getOpposite().toYRot(), 36, 0);
     }
 
     @Override public Vec3 rest(boolean rightHand) {
@@ -123,9 +128,9 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
         zone = null;
         aim = null;
         if (overPanel || menu() == null || slot(SLOT_MAIN).isEmpty()) return;
-        Vec3 hit = Picking.cursorOnPlane(top.y + 0.02);
+        Vec3 hit = Picking.cursorOnPlane(top().y + 0.02);
         if (hit == null) return;
-        Vec3 offset = hit.subtract(top);
+        Vec3 offset = hit.subtract(top());
         double u = offset.dot(right());
         double v = offset.dot(side());
         zone = zoneAt(u, v);
@@ -196,6 +201,7 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
     // ---- rendering --------------------------------------------------------------------------------------
 
     @Override public void renderScene(PoseStack pose, MultiBufferSource buffers, Camera camera, int light) {
+        SceneVisibility.mark(pos);
         Vec3 cam = camera.getPosition();
         ItemStack tongs = Tongs.inHands(Minecraft.getInstance().player);
         ItemStack main = slot(SLOT_MAIN);
@@ -217,21 +223,22 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
             // Jaw clamping to the ingot's size is still to do.
             Quaternionf lying = ItemPlacer.lying(ItemPlacer.awayYaw(side), 0f);
             Vec3 tip = at(held ? -HALF_LENGTH - 0.05 : -0.36, 0.0, held ? 0.06 : 0.02);
-            ItemPlacer.drawOriented(pose, buffers, cam, tongs, tip, lying, 1.2f, light);
+            ItemPlacer.drawOriented(pose, buffers, cam, tongs, tip, lying, TONGS_SIZE, light);
         }
     }
 
     @Override public void renderWorld(PoseStack pose, MultiBufferSource buffers, Vec3 camera, int light) {
+        SceneVisibility.mark(pos);
         ItemStack hammer = slot(SLOT_HAMMER);
         if (hammer.isEmpty()) return;
         double t = Mth.clamp((now() - strikeAt) / SWING_SECONDS, 0, 1);
         // Raise then drop: 0 at rest and at the strike, peaking midway.
         double raise = swinging() ? Math.sin(t * Math.PI) * 0.18 : 0;
         Vec3 grip = (handPos != null ? handPos : rest(true)).add(0, raise, 0);
-        float angle = (float) (swinging() ? -Math.sin(t * Math.PI) * 0.9 : 0);
-        Vec3 axis = right();
-        Quaternionf tilt = new Quaternionf().fromAxisAngleRad((float) axis.x, (float) axis.y, (float) axis.z, angle);
-        ItemPlacer.drawOriented(pose, buffers, camera, hammer, grip, tilt, 1.4f, light);
+        // Degrees tipped up from lying flat: held up at rest, lifted further mid-swing, back down at the strike.
+        float tiltDegrees = (float) (HAMMER_REST_TILT + (swinging() ? Math.sin(t * Math.PI) * 40 : 0));
+        Quaternionf rotation = ItemPlacer.lying(ItemPlacer.awayYaw(side), tiltDegrees);
+        ItemPlacer.drawOriented(pose, buffers, camera, hammer, grip, rotation, HAMMER_SIZE, light);
     }
 
     /** A translucent quad over the workpiece, coloured by TFC's heat level. */

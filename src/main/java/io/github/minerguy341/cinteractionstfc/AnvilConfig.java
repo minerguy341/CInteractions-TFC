@@ -15,6 +15,9 @@ public final class AnvilConfig {
     public static final ModConfigSpec.EnumValue<HitControl> HIT_CONTROL;
     public static final ModConfigSpec.BooleanValue HEAT_GAUGE;
     public static final ModConfigSpec.BooleanValue PLAN_PANEL;
+    public static final ModConfigSpec.DoubleValue TOP_OFFSET;
+    public static final ModConfigSpec.DoubleValue CAMERA_BACK;
+    public static final ModConfigSpec.DoubleValue CAMERA_HEIGHT;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -27,6 +30,17 @@ public final class AnvilConfig {
         PLAN_PANEL = builder
                 .comment("Show the placeholder floating panel with work, target and the three rule requirements.")
                 .define("planPanel", true);
+        builder.push("tuning");
+        TOP_OFFSET = builder
+                .comment("Height of the anvil's working face above the block centre, in blocks. Edit the file while the game runs to tune it.")
+                .defineInRange("topOffset", 0.30, -0.5, 1.0);
+        CAMERA_BACK = builder
+                .comment("How far the camera sits back from the anvil centre, towards the player, in blocks.")
+                .defineInRange("cameraBack", 0.8, 0.2, 2.5);
+        CAMERA_HEIGHT = builder
+                .comment("How high the camera sits above the working face, in blocks.")
+                .defineInRange("cameraHeight", 0.7, 0.2, 2.0);
+        builder.pop();
         SPEC = builder.build();
     }
 

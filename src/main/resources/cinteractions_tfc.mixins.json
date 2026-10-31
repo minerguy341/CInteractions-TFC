@@ -6,6 +6,9 @@
   "mixins": [
     "MenuActionsMixin"
   ],
+  "client": [
+    "AnvilRendererMixin"
+  ],
   "injectors": {
     "defaultRequire": 1
   }

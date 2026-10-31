@@ -55,6 +55,9 @@ Code: `AnvilScene` (client), `AnvilStations` (registers every `tfc:rock/anvil/*`
 - Hot or Not cannot load in a Gradle dev run. Its dependency TFC Registry API (`tfcregistryapi.util.Helpers.discoverRegistryEnums`) calls `FileSystems.newFileSystem` on the file path of every loaded mod, which throws `ProviderNotFoundException` for NeoForge/Minecraft/this mod's dev paths (it crashed from both the Gradle classpath and `run/mods`). So `runClient` is the "without Hot or Not" path; for the "with" path run `./gradlew stageRealMods` and copy `build/real-mods/*.jar` into a NeoForge 1.21.1 instance's `mods` folder in a normal launcher (the set: this addon, CI, TFC, Patchouli, Hot or Not, TFC Registry API).
 - First in-game result after the mixin: the exit animation no longer plays immediately.
 
+- With CI 0.18.28 the scene opens and re-enters repeatedly. Screenshot findings: TFC's own block entity renderer drew the ingot/hammer under our scene (duplicates), hidden by `AnvilRendererMixin` while `SceneVisibility` says a scene drew that anvil in the last 250 ms; the huge dark shape was our hammer drawn at `size 1.4` (ItemPlacer.drawOriented takes world blocks, ~0.2 for a flat item), now `HAMMER_SIZE`/`TONGS_SIZE`.
+- Tunable without a rebuild (edit `run/config/cinteractions_tfc-client.toml` while the game runs): `tuning.topOffset`, `tuning.cameraBack`, `tuning.cameraHeight`.
+
 ## Open
 - Jaw clamping (tongs model per item type) and holding the ingot visibly in the tongs.
 - Hammer swing timing against the server result; impact sparks/sounds.
