@@ -116,6 +116,7 @@ val stageRealMods by tasks.registering(Copy::class) {
 }
 
 tasks.processResources {
+    exclude("assets/cinteractions_tfc/textures/tool/ref/**") // Blockbench reference copies of Hot or Not / TFC art
     val values = mapOf(
         "mod_id" to modId,
         "mod_name" to prop("mod.name"),
