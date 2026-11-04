@@ -18,6 +18,8 @@ public final class AnvilConfig {
     public static final ModConfigSpec.DoubleValue TOP_OFFSET;
     public static final ModConfigSpec.DoubleValue CAMERA_BACK;
     public static final ModConfigSpec.DoubleValue CAMERA_HEIGHT;
+    public static final ModConfigSpec.DoubleValue HAMMER_SIZE;
+    public static final ModConfigSpec.DoubleValue TONGS_SIZE;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -40,6 +42,12 @@ public final class AnvilConfig {
         CAMERA_HEIGHT = builder
                 .comment("How high the camera sits above the working face, in blocks.")
                 .defineInRange("cameraHeight", 0.7, 0.2, 2.0);
+        HAMMER_SIZE = builder
+                .comment("Edge length of the hammer sprite in blocks (a flat ingot is about 0.2).")
+                .defineInRange("hammerSize", 0.28, 0.1, 0.8);
+        TONGS_SIZE = builder
+                .comment("Edge length of the tongs sprite in blocks; also how far the handle reaches from the ingot.")
+                .defineInRange("tongsSize", 0.34, 0.1, 0.8);
         builder.pop();
         SPEC = builder.build();
     }
