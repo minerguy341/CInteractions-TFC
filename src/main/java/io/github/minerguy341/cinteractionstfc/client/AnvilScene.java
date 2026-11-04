@@ -28,6 +28,7 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
@@ -35,7 +36,6 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
-import org.joml.Vector3f;
 
 /**
  * First-person TFC anvil. The server menu keeps authority over the work: every blow is a TFC {@link ScreenButtonPacket}
@@ -47,9 +47,6 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
     private static final double HALF_WIDTH = 0.10;
     private static final double SWING_SECONDS = 0.28;
     private static final float HAMMER_REST_TILT = 25f;
-    /** Which way each sprite's working end points in its own plane: the hammer head is top-right, the tong jaws top-left. */
-    private static final Vector3f HAMMER_HEAD = new Vector3f(1, 1, 0);
-    private static final Vector3f TONG_JAWS = new Vector3f(-1, 1, 0);
     /** How quickly the drawn hands' tools follow (matches the hands' own spring, see handsStiffness). */
     private static final double HAND_RATE = 17;
     /** Where the hammer lies on the anvil (u along the anvil, v towards the player) and the pick-up timing in seconds. */
@@ -123,25 +120,7 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
         return tongTip().add(tongHandleDirection().scale(AnvilConfig.TONGS_SIZE.get() * 1.35)).add(0, 0.05, 0);
     }
 
-    /** Lying flat with the sprite's working end ({@code end}, in sprite space) turned to point along {@code horizontal}. */
-    private static Quaternionf lyingTowards(Vec3 horizontal, Vector3f end, float tiltDegrees) {
-        Quaternionf base = ItemPlacer.lying(0f, tiltDegrees);
-        Vector3f now = base.transform(new Vector3f(end));
-        double wanted = Math.atan2(horizontal.z, horizontal.x);
-        double theta = Math.atan2(now.z, now.x) - wanted;
-        Quaternionf best = null;
-        double bestError = Double.MAX_VALUE;
-        for (double candidate : new double[] {theta, -theta}) { // cover either sign convention
-            Quaternionf q = new Quaternionf().rotationY((float) candidate).mul(base);
-            Vector3f out = q.transform(new Vector3f(end));
-            double error = Math.abs(Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(out.z, out.x) - wanted)));
-            if (error < bestError) {
-                bestError = error;
-                best = q;
-            }
-        }
-        return best;
-    }
+
 
     @Override protected Vec3 restPoint(int slot) {
         return switch (slot) {
@@ -341,53 +320,79 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
         return pickingUp() || steeringHands() ? HAND_RATE : super.handsStiffness();
     }
 
-    /** Where the right hand is this frame, smoothed the way the arm's own spring moves it, so the hammer stays in it. */
+    /** The right hand this frame: Cinematic Interactions' own arm in every phase, else a smoothed copy of its target. */
     private Vec3 rightHandNow(double dt) {
+        Vec3 real = HandsAccess.position(true);
+        if (real != null) return real;
         Vec3 target = pickingUp() ? pickupHand(now() - pickupAt) : rightTarget();
         rightEst = rightEst == null ? target : lerp(rightEst, target, 1 - Math.exp(-HAND_RATE * dt));
         return rightEst;
     }
 
     private Vec3 leftHandNow(double dt) {
+        Vec3 real = HandsAccess.position(false);
+        if (real != null) return real;
         Vec3 target = rest(false);
         leftEst = leftEst == null ? target : lerp(leftEst, target, 1 - Math.exp(-HAND_RATE * dt));
         return leftEst;
     }
 
+    private static final double HAMMER_HANDLE = 0.07; // handle behind the hand, before the model's scale
+
+    /** The hammer as a 3D model: lying where TFC puts it, then in the right hand (also while approaching and leaving). */
     private void drawHammer(PoseStack pose, MultiBufferSource buffers, Vec3 cam, double dt, int light) {
         ItemStack hammer = slot(SLOT_HAMMER);
         Vec3 hand = rightHandNow(dt);
         if (hammer.isEmpty()) return;
-        float size = AnvilConfig.HAMMER_SIZE.get().floatValue();
+        ToolPalette palette = ToolPalette.of(hammer);
+        float scale = (float) (AnvilConfig.HAMMER_SIZE.get() / 0.28);
+        Vec3 up = new Vec3(0, 1, 0);
+        Vec3 away = side().scale(-1);
+        Vec3 flat = away.scale(0.85).add(right().scale(0.5)).normalize(); // head away and to the right, like TFC's sprite
+
+        // Lying on the anvil: handle towards the player's left, head flat to the right.
+        Quaternionf lying = ToolMesh.frame(flat, flat.cross(up));
+        Vec3 lyingGrip = hammerHome().subtract(flat.scale(0.12 * scale));
+
         double t = pickupAt < 0 ? -1 : now() - pickupAt;
         if (t < GRAB_END) {
-            // Still lying where TFC puts it (also the whole intro, before the first tick).
-            ItemPlacer.drawOriented(pose, buffers, cam, hammer, hammerHome(), ItemPlacer.lying(ItemPlacer.awayYaw(side), 0), size, light);
+            ToolMesh.hammer(pose, buffers, cam, lyingGrip, lying, scale, palette, light);
             return;
         }
         double a = t < PICKUP_SECONDS ? ease((t - GRAB_END) / (PICKUP_SECONDS - GRAB_END)) : 1;
         double s = Mth.clamp((now() - strikeAt) / SWING_SECONDS, 0, 1);
-        float tilt = (float) (HAMMER_REST_TILT * a + (swinging() ? Math.sin(s * Math.PI) * 40 : 0));
-        Quaternionf rotation = ItemPlacer.lying(ItemPlacer.awayYaw(side), tilt);
-        // The hand holds the handle end: the sprite's centre sits half a length along the head direction from the grip.
-        Vector3f head = rotation.transform(new Vector3f(HAMMER_HEAD)).normalize();
-        Vec3 grip = hand.add(0, -0.02, 0);
-        Vec3 held = grip.add(head.x * size * 0.5, head.y * size * 0.5, head.z * size * 0.5);
-        Vec3 centre = a < 1 ? lerp(hammerHome(), held, a) : held;
-        ItemPlacer.drawOriented(pose, buffers, cam, hammer, centre, rotation, size, light);
+        double pitch = Math.toRadians(HAMMER_REST_TILT + 10 + (swinging() ? Math.sin(s * Math.PI) * 50 : 0));
+        Vec3 dir = flat.scale(Math.cos(pitch)).add(up.scale(Math.sin(pitch)));
+        Quaternionf held = ToolMesh.frame(dir, up.scale(-1)); // head axis in the swing plane, a face leading the blow
+        Vec3 grip = hand.add(dir.scale(-HAMMER_HANDLE * scale)); // the hand closes on the handle, not its butt
+        Quaternionf rotation = a < 1 ? lying.slerp(held, (float) a, new Quaternionf()) : held;
+        ToolMesh.hammer(pose, buffers, cam, a < 1 ? lerp(lyingGrip, grip, a) : grip, rotation, scale, palette, light);
     }
 
+    /** How far apart the jaws sit around the held item: its thickness, by kind, so plates are gripped tighter than ingots. */
+    private static float jawGap(ItemStack held) {
+        if (held.isEmpty()) return 0.03f;
+        String path = BuiltInRegistries.ITEM.getKey(held.getItem()).getPath();
+        if (path.contains("double_ingot")) return 0.034f;
+        if (path.contains("double_sheet")) return 0.02f;
+        if (path.contains("sheet")) return 0.012f;
+        if (path.contains("ingot")) return 0.018f;
+        if (path.contains("rod")) return 0.022f;
+        return (float) Mth.clamp(ItemPlacer.restingBounds(held, Vec3.ZERO).getYsize() + 0.008, 0.012, 0.06);
+    }
+
+    /** The tongs as a 3D model: handle in the left hand (also while approaching and leaving), jaws on the ingot. */
     private void drawTongs(PoseStack pose, MultiBufferSource buffers, Vec3 cam, double dt, ItemStack tongs, int light) {
-        Vec3 grip = leftHandNow(dt);
-        Vec3 tip = tongTip();
-        Vec3 along = tip.subtract(grip);
-        Vec3 flat = new Vec3(along.x, 0, along.z);
-        if (flat.lengthSqr() < 1e-6) return;
-        // The jaws on the ingot, the handle in the left hand, the sprite's jaw corner pointing at the ingot.
-        Quaternionf rotation = lyingTowards(flat, TONG_JAWS, 0f);
-        ItemPlacer.drawOriented(pose, buffers, cam, tongs, grip.add(along.scale(0.5)), rotation, AnvilConfig.TONGS_SIZE.get().floatValue(), light);
+        Vec3 hand = leftHandNow(dt);
+        // The tongs are one rigid piece with the hand: the jaw end is wherever the grip's offset puts it, and sits on the
+        // ingot once the hand has settled at its rest point.
+        Vec3 along = tongTip().subtract(tongGrip());
+        float length = (float) along.length();
+        if (length < 1e-3) return;
+        Vec3 up = new Vec3(0, 1, 0);
+        Quaternionf frame = ToolMesh.frame(along, along.cross(up));
+        ToolMesh.tongs(pose, buffers, cam, hand, frame, length, jawGap(slot(SLOT_MAIN)), ToolPalette.of(tongs), light);
     }
-
     /** A translucent quad over the workpiece, coloured by TFC's heat level. */
     private void glow(PoseStack pose, MultiBufferSource buffers, Vec3 cam, ItemStack stack, Vec3 centre) {
         float[] c = HeatLook.glow(HeatCapability.getTemperature(stack));
