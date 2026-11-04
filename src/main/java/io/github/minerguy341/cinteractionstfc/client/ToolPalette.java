@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.resources.model.BakedModel;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -33,10 +34,18 @@ final class ToolPalette {
     }
 
     static ToolPalette of(ItemStack stack) {
+        return CACHE.computeIfAbsent(sprite(stack).contents().name(), ToolPalette::load);
+    }
+
+    /** The atlas sprite of the item's own texture (its first layer), the same for every item that shares a model layout. */
+    static TextureAtlasSprite sprite(ItemStack stack) {
         Minecraft mc = Minecraft.getInstance();
         BakedModel model = mc.getItemRenderer().getModel(stack, mc.level, null, 0);
-        ResourceLocation sprite = model.getParticleIcon(ModelData.EMPTY).contents().name();
-        return CACHE.computeIfAbsent(sprite, ToolPalette::load);
+        return model.getParticleIcon(ModelData.EMPTY);
+    }
+
+    static void clearCache() {
+        CACHE.clear();
     }
 
     /** Six face colours (-X, +X, -Y, +Y, -Z, +Z) for a part of the hammer's head, drawn from the sprite's head pixels. */

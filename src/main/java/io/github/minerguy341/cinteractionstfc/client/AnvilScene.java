@@ -115,9 +115,29 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
         return right().scale(-0.55).add(side().scale(0.84)).normalize();
     }
 
+    /** The Blockbench tongs model, once it has been painted onto the sprite; null while it is still the starter. */
+    private static ToolModel tongsModel() {
+        ToolModel model = ToolModel.get("tongs");
+        return model == null || model.isStarter() ? null : model;
+    }
+
+    private static ToolModel hammerModel() {
+        ToolModel model = ToolModel.get("hammer");
+        return model == null || model.isStarter() ? null : model;
+    }
+
+    /** Blocks per model unit: a 16-unit model is {@code tongsSize} across. */
+    private static double tongUnit() { return AnvilConfig.TONGS_SIZE.get() / 16.0; }
+
+    /** Hand to jaws: the model's own grip-to-tip length when there is a model, else the built-in boxes' length. */
+    private static double tongLength() {
+        ToolModel model = tongsModel();
+        return model != null ? model.gripToTip() * tongUnit() : AnvilConfig.TONGS_SIZE.get() * 1.35;
+    }
+
     /** The left hand's grip on the tongs. */
     private Vec3 tongGrip() {
-        return tongTip().add(tongHandleDirection().scale(AnvilConfig.TONGS_SIZE.get() * 1.35)).add(0, 0.05, 0);
+        return tongTip().add(tongHandleDirection().scale(tongLength())).add(0, 0.05, 0);
     }
 
 
@@ -356,7 +376,7 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
 
         double t = pickupAt < 0 ? -1 : now() - pickupAt;
         if (t < GRAB_END) {
-            ToolMesh.hammer(pose, buffers, cam, lyingGrip, lying, scale, palette, light);
+            placeHammer(pose, buffers, cam, hammer, lyingGrip.add(flat.scale(0.12 * scale)), flat, up, lyingGrip, lying, scale, palette, light);
             return;
         }
         double a = t < PICKUP_SECONDS ? ease((t - GRAB_END) / (PICKUP_SECONDS - GRAB_END)) : 1;
@@ -366,9 +386,25 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
         Quaternionf held = ToolMesh.frame(dir, up.scale(-1)); // head axis in the swing plane, a face leading the blow
         Vec3 grip = hand.add(dir.scale(-HAMMER_HANDLE * scale)); // the hand closes on the handle, not its butt
         Quaternionf rotation = a < 1 ? lying.slerp(held, (float) a, new Quaternionf()) : held;
-        ToolMesh.hammer(pose, buffers, cam, a < 1 ? lerp(lyingGrip, grip, a) : grip, rotation, scale, palette, light);
+        Vec3 side3 = flat.cross(up).normalize(); // the sprite's plane is the swing plane, its depth sideways
+        Vec3 modelDir = a < 1 ? lerp(flat, dir, a).normalize() : dir;
+        Vec3 modelDepth = a < 1 ? lerp(up, side3, a) : side3;
+        Vec3 meshGrip = a < 1 ? lerp(lyingGrip, grip, a) : grip;
+        placeHammer(pose, buffers, cam, hammer, a < 1 ? lerp(lyingGrip.add(flat.scale(0.12 * scale)), hand, a) : hand, modelDir, modelDepth,
+                meshGrip, rotation, scale, palette, light);
     }
 
+    /** Draws the Blockbench hammer when it has been painted, else the built-in boxes. */
+    private void placeHammer(PoseStack pose, MultiBufferSource buffers, Vec3 cam, ItemStack hammer, Vec3 modelGrip, Vec3 dir,
+                             Vec3 depth, Vec3 meshGrip, Quaternionf meshFrame, float scale, ToolPalette palette, int light) {
+        ToolModel model = hammerModel();
+        if (model == null) {
+            ToolMesh.hammer(pose, buffers, cam, meshGrip, meshFrame, scale, palette, light);
+            return;
+        }
+        float unit = AnvilConfig.HAMMER_SIZE.get().floatValue() / 16f;
+        model.draw(pose, buffers, cam, ToolPalette.sprite(hammer), modelGrip, model.orient(dir, depth), unit, 0f, light);
+    }
     /** How far apart the jaws sit around the held item: its thickness, by kind, so plates are gripped tighter than ingots. */
     private static float jawGap(ItemStack held) {
         if (held.isEmpty()) return 0.03f;
@@ -390,6 +426,14 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
         float length = (float) along.length();
         if (length < 1e-3) return;
         Vec3 up = new Vec3(0, 1, 0);
+        ToolModel model = tongsModel();
+        if (model != null) {
+            float unit = (float) tongUnit();
+            // Jaws open vertically (depth up); the clamp is the held item's thickness in model units.
+            model.draw(pose, buffers, cam, ToolPalette.sprite(tongs), hand, model.orient(along, up), unit,
+                    jawGap(slot(SLOT_MAIN)) / unit, light);
+            return;
+        }
         Quaternionf frame = ToolMesh.frame(along, along.cross(up));
         ToolMesh.tongs(pose, buffers, cam, hand, frame, length, jawGap(slot(SLOT_MAIN)), ToolPalette.of(tongs), light);
     }

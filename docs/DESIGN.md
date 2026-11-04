@@ -58,13 +58,15 @@ Code: `AnvilScene` (client), `AnvilStations` (registers every `tfc:rock/anvil/*`
 - With CI 0.18.28 the scene opens and re-enters repeatedly. Screenshot findings: TFC's own block entity renderer drew the ingot/hammer under our scene (duplicates), hidden by `AnvilRendererMixin` while `SceneVisibility` says a scene drew that anvil in the last 250 ms; the huge dark shape was our hammer drawn at `size 1.4` (ItemPlacer.drawOriented takes world blocks, ~0.2 for a flat item), now `HAMMER_SIZE`/`TONGS_SIZE`.
 - Tunable without a rebuild (edit `run/config/cinteractions_tfc-client.toml` while the game runs): `tuning.topOffset`, `tuning.cameraBack`, `tuning.cameraHeight`.
 
-## Authoring 3D tools in Blockbench (option 1: shapes from Blockbench, colours from the tool's own texture)
-Models live in `src/main/resources/assets/cinteractions_tfc/models/tool/` (`hammer.json`, `tongs.json`), format Java Block/Item. Starter files match the current built-in boxes. The loader that reads them is not written yet; the scene still draws the built-in boxes from `ToolMesh`.
-- Units: 1 unit = 1/16 of a ~0.3-block tool, scaled by the `hammerSize` / `tongsSize` config. The hand holds the tool at model point `[8, 4, 8]`; the loader subtracts that.
-- Hammer: handle along +Y, head long axis along X. Elements named `handle` and `head` (colours come from the sprite's bottom-left and top-right pixels).
-- Tongs: handle end at the grip, jaws toward +Y, arms open along Z. Two groups named `arm_a` and `arm_b`, each with its pivot at the hinge, modelled CLOSED; the scene rotates them about the hinge so the jaws clamp to the held item's thickness (`jawGap`). Other elements are static.
-- Colours: every face is coloured from the tool's own texture via `ToolPalette`, so UVs are ignored in this option.
-
+## Authoring 3D tools in Blockbench (shapes and pixel UVs from the model, texture from the tool's own sprite)
+Models live in `src/main/resources/assets/cinteractions_tfc/models/tool/` (`hammer.json`, `tongs.json`), format Java Block/Item. `ToolModel` loads them, `AnvilScene` draws them; a model that is still the generated starter (every face mapped to the whole 16x16 sprite) is ignored and the built-in boxes (`ToolMesh`) are drawn instead. F3+T re-reads them.
+- Sprite space: 1 unit = 1 sprite pixel; the sprite's plane is the model's X-Y plane (handle bottom-left, working end top-right), Z is the tool's depth. Paint each cube's faces onto the matching pixels of the reference texture (`textures/tool/ref/`); at draw time the UVs sample the held tool's own sprite, so one model serves every metal. A face left untextured takes its cube's own textured pixel.
+- `tongsSize` / `hammerSize` (config) = blocks across a 16-unit model.
+- Markers (empty groups, origin = the point): `grip` where the hand holds the tool, `tip` where the working end touches. Defaults if absent: the centres of the first and last cube of `arm_a`.
+- Tongs: groups `arm_a` and `arm_b`, modelled CLOSED (`arm_b` is `arm_a` mirrored in Z about z=8), plus a `hinge` cube. To clamp, each arm swings about the hinge so the jaws open to the held item's thickness (`jawGap`); if the hinge is within 4 units of the tip the arms slide apart along Z instead.
+- The left hand grips at `grip`; the jaws sit on the ingot's left end at `tip` (the scene sets the tool's length from the model).
+- The hammer is used the same way once painted: handle bottom-left, head top-right, depth sideways while swinging.
+- The user's last saved hand-built tongs (before `arm_b`/markers were generated) are in `run/reference/tongs.saved-by-user.json`.
 ## Open
 - Jaw clamping (tongs model per item type) and holding the ingot visibly in the tongs.
 - Hammer swing timing against the server result; impact sparks/sounds.

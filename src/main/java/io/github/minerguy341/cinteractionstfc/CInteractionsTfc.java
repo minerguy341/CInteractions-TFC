@@ -18,7 +18,10 @@ public final class CInteractionsTfc {
     public CInteractionsTfc(IEventBus modBus, ModContainer container) {
         container.registerConfig(ModConfig.Type.CLIENT, AnvilConfig.SPEC);
         modBus.addListener(this::common);
-        if (FMLEnvironment.dist.isClient()) modBus.addListener(CInteractionsTfcClient::setup);
+        if (FMLEnvironment.dist.isClient()) {
+            modBus.addListener(CInteractionsTfcClient::setup);
+            modBus.addListener(CInteractionsTfcClient::reloadListeners);
+        }
     }
 
     private void common(FMLCommonSetupEvent event) {
