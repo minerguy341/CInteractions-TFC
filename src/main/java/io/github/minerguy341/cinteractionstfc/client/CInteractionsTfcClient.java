@@ -16,6 +16,8 @@ public final class CInteractionsTfcClient {
         event.registerReloadListener((ResourceManagerReloadListener) manager -> {
             ToolModel.clearCache();
             ToolPalette.clearCache();
+            ToolModel.get("tongs"); // load now, so a broken model is reported at startup and not in the middle of a scene
+            ToolModel.get("hammer");
         });
     }
 

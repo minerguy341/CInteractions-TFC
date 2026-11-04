@@ -417,6 +417,23 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
         return (float) Mth.clamp(ItemPlacer.restingBounds(held, Vec3.ZERO).getYsize() + 0.008, 0.012, 0.06);
     }
 
+    /** Plates are held by their edge; everything else lies flat in the jaws. */
+    private static boolean gripsOnEdge(ItemStack held) {
+        return !held.isEmpty() && BuiltInRegistries.ITEM.getKey(held.getItem()).getPath().contains("sheet");
+    }
+
+    /** How far apart the jaw tips close: the item's width lying flat, or its thickness on edge, in blocks. */
+    private static float jawSpan(ItemStack held, boolean onEdge) {
+        if (held.isEmpty()) return 0.05f;
+        String path = BuiltInRegistries.ITEM.getKey(held.getItem()).getPath();
+        if (path.contains("double_sheet")) return 0.025f;
+        if (path.contains("sheet")) return 0.015f;
+        if (path.contains("double_ingot")) return 0.10f;
+        if (path.contains("ingot")) return 0.085f;
+        if (path.contains("rod")) return 0.03f;
+        var bounds = ItemPlacer.restingBounds(held, Vec3.ZERO);
+        return (float) Mth.clamp(Math.min(bounds.getXsize(), bounds.getZsize()), 0.03, 0.12);
+    }
     /** The tongs as a 3D model: handle in the left hand (also while approaching and leaving), jaws on the ingot. */
     private void drawTongs(PoseStack pose, MultiBufferSource buffers, Vec3 cam, double dt, ItemStack tongs, int light) {
         Vec3 hand = leftHandNow(dt);
@@ -429,9 +446,13 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
         ToolModel model = tongsModel();
         if (model != null) {
             float unit = (float) tongUnit();
-            // Jaws open vertically (depth up); the clamp is the held item's thickness in model units.
-            model.draw(pose, buffers, cam, ToolPalette.sprite(tongs), hand, model.orient(along, up), unit,
-                    jawGap(slot(SLOT_MAIN)) / unit, light);
+            // The jaws close in the sprite's plane. Flat on the anvil they close sideways across an ingot's width; held on
+            // edge (plates) the plane stands up and they close on the thickness.
+            ItemStack held = slot(SLOT_MAIN);
+            boolean onEdge = gripsOnEdge(held);
+            Vec3 depth = onEdge ? along.cross(up) : up;
+            model.draw(pose, buffers, cam, ToolPalette.sprite(tongs), hand, model.orient(along, depth), unit,
+                    jawSpan(held, onEdge) / unit, light);
             return;
         }
         Quaternionf frame = ToolMesh.frame(along, along.cross(up));

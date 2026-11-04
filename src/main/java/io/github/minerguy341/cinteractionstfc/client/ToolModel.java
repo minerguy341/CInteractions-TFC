@@ -92,6 +92,12 @@ final class ToolModel {
             CInteractionsTfc.LOGGER.info("Tool model {}: {} cubes, {}, arms {}, grip {} tip {} hinge {}", name, model.parts.size(),
                     model.starter ? "still the starter (built-in shape used)" : "painted", model.hasArms ? "yes" : "no",
                     java.util.Arrays.toString(model.grip), java.util.Arrays.toString(model.tip), java.util.Arrays.toString(model.hinge));
+            if (model.hasArms) {
+                CInteractionsTfc.LOGGER.info("Tool model {} jaws: tipA {} tipB {} openDistance {} swingToward {} halfSpread {} deg; closed to 3.5 units: {} deg",
+                        name, java.util.Arrays.toString(model.tipA), java.util.Arrays.toString(model.tipB),
+                        String.format("%.2f", model.jawDistance(0)), model.closeDirection,
+                        String.format("%.1f", Math.toDegrees(model.halfSpread)), String.format("%.1f", Math.toDegrees(model.closeAngle(3.5f))));
+            }
             return model.parts.isEmpty() ? NONE : model;
         } catch (Exception problem) {
             CInteractionsTfc.LOGGER.warn("Cannot load tool model {}; using the built-in shape", file, problem);
@@ -167,6 +173,63 @@ final class ToolModel {
         }
         if (groupOrigins.containsKey("grip")) grip = groupOrigins.get("grip").clone();
         if (groupOrigins.containsKey("tip")) tip = groupOrigins.get("tip").clone();
+        if (hasArms) findJaws();
+    }
+
+    /** The centre of the cube of {@code group} that lies furthest from the hinge on the jaw side ({@code jawDirection}). */
+    private float[] jawTip(String group, float[] jawDirection) {
+        float[] best = null;
+        float bestDistance = -1;
+        for (Part part : parts) {
+            if (!part.group.equals(group)) continue;
+            float cx = (part.from[0] + part.to[0]) / 2f - hinge[0];
+            float cy = (part.from[1] + part.to[1]) / 2f - hinge[1];
+            if (cx * jawDirection[0] + cy * jawDirection[1] <= 0) continue; // behind the hinge: the handle
+            float distance = (float) Math.hypot(cx, cy);
+            if (distance > bestDistance) {
+                bestDistance = distance;
+                best = new float[] {cx + hinge[0], cy + hinge[1]};
+            }
+        }
+        return best != null ? best : new float[] {tip[0], tip[1]};
+    }
+
+    /** Which way to turn arm_a (and the opposite way arm_b) to bring the jaws together: +1 or -1 about +Z. */
+    private float closeDirection = 1f;
+    private float[] tipA = {0, 0}, tipB = {0, 0};
+    private double halfSpread;
+
+    private void findJaws() {
+        float[] towardJaws = {tip[0] - hinge[0], tip[1] - hinge[1]};
+        tipA = jawTip("arm_a", towardJaws);
+        tipB = jawTip("arm_b", towardJaws);
+        double angleA = Math.atan2(tipA[1] - hinge[1], tipA[0] - hinge[0]);
+        double angleB = Math.atan2(tipB[1] - hinge[1], tipB[0] - hinge[0]);
+        double spread = Math.atan2(Math.sin(angleB - angleA), Math.cos(angleB - angleA)); // signed, -pi..pi
+        closeDirection = spread > 0 ? 1f : -1f;
+        halfSpread = Math.abs(spread) / 2.0;
+    }
+
+    /** Distance between the two jaw tips after each arm has swung {@code angle} towards the other. */
+    private double jawDistance(double angle) {
+        double a = closeDirection * angle;
+        double ax = tipA[0] - hinge[0], ay = tipA[1] - hinge[1];
+        double bx = tipB[0] - hinge[0], by = tipB[1] - hinge[1];
+        double rax = ax * Math.cos(a) - ay * Math.sin(a), ray = ax * Math.sin(a) + ay * Math.cos(a);
+        double rbx = bx * Math.cos(-a) - by * Math.sin(-a), rby = bx * Math.sin(-a) + by * Math.cos(-a);
+        return Math.hypot(rax - rbx, ray - rby);
+    }
+
+    /** The swing, in radians, that leaves the jaw tips {@code gapUnits} apart (0 when the sprite's own pose is already narrower). */
+    private float closeAngle(float gapUnits) {
+        if (gapUnits >= jawDistance(0)) return 0f;
+        double low = 0, high = halfSpread;
+        if (jawDistance(high) >= gapUnits) return (float) high;
+        for (int i = 0; i < 28; i++) {
+            double mid = (low + high) / 2;
+            if (jawDistance(mid) > gapUnits) low = mid; else high = mid;
+        }
+        return (float) high;
     }
 
     private static float minZ(List<Part> list) {
@@ -223,11 +286,7 @@ final class ToolModel {
     void draw(PoseStack pose, MultiBufferSource buffers, Vec3 camera, TextureAtlasSprite sprite, Vec3 hand, Quaternionf rotation,
               float unit, float gapUnits, int light) {
         VertexConsumer vc = buffers.getBuffer(RenderType.entityCutout(TextureAtlas.LOCATION_BLOCKS));
-        float dx = tip[0] - grip[0];
-        float dy = tip[1] - grip[1];
-        float length = (float) Math.hypot(dx, dy);
-        Vector3f axis = length < 1e-4f ? new Vector3f(1, 0, 0) : new Vector3f(dy / length, -dx / length, 0);
-        float hingeToTip = (float) Math.hypot(tip[0] - hinge[0], tip[1] - hinge[1]);
+        float closed = hasArms ? closeAngle(gapUnits) : 0f;
         for (Part part : parts) {
             pose.pushPose();
             pose.translate(hand.x - camera.x, hand.y - camera.y, hand.z - camera.z);
@@ -235,16 +294,12 @@ final class ToolModel {
             pose.scale(unit, unit, unit);
             pose.translate(-grip[0], -grip[1], -grip[2]);
             int side = !hasArms ? 0 : part.group.equals("arm_a") ? 1 : part.group.equals("arm_b") ? -1 : 0;
-            if (side != 0 && gapUnits > 0) {
-                if (hingeToTip >= 4f) {
-                    // Swing the arm about the hinge so its jaw moves half the gap; the arms were modelled closed.
-                    float angle = (float) Math.asin(Math.min(0.6, gapUnits / (2.0 * hingeToTip)));
-                    pose.translate(hinge[0], hinge[1], hinge[2]);
-                    pose.mulPose(new Quaternionf().fromAxisAngleRad(axis, side * angle));
-                    pose.translate(-hinge[0], -hinge[1], -hinge[2]);
-                } else {
-                    pose.translate(0, 0, side * gapUnits / 2f); // the hinge is at the jaws: just slide the arms apart
-                }
+            if (side != 0 && closed != 0f) {
+                // The jaws splay apart in the sprite's own plane: swing each arm about the hinge, towards the other, until the
+                // tips are the item's width apart.
+                pose.translate(hinge[0], hinge[1], hinge[2]);
+                pose.mulPose(new Quaternionf().rotationZ(side * closeDirection * closed));
+                pose.translate(-hinge[0], -hinge[1], -hinge[2]);
             }
             if (part.rotationAngle != 0) {
                 float r = (float) Math.toRadians(part.rotationAngle);
