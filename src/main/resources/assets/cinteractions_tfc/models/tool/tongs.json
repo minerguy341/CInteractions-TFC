@@ -1,0 +1,257 @@
+﻿{
+    "credit":  "Starter tongs: handle end at [8,4,8], jaws toward +Y, arms open along Z. Groups arm_a / arm_b pivot on the hinge at [8,14,8] and are modelled CLOSED.",
+    "texture_size":  [
+                         16,
+                         16
+                     ],
+    "textures":  {
+                     "0":  "minecraft:block/iron_block"
+                 },
+    "elements":  [
+                     {
+                         "name":  "arm_a",
+                         "from":  [
+                                      7.2,
+                                      4,
+                                      8
+                                  ],
+                         "to":  [
+                                    8.8,
+                                    28,
+                                    8.6
+                                ],
+                         "faces":  {
+                                       "south":  {
+                                                     "uv":  [
+                                                                0,
+                                                                0,
+                                                                4,
+                                                                4
+                                                            ],
+                                                     "texture":  "#0"
+                                                 },
+                                       "north":  {
+                                                     "uv":  [
+                                                                0,
+                                                                0,
+                                                                4,
+                                                                4
+                                                            ],
+                                                     "texture":  "#0"
+                                                 },
+                                       "up":  {
+                                                  "uv":  [
+                                                             0,
+                                                             0,
+                                                             4,
+                                                             4
+                                                         ],
+                                                  "texture":  "#0"
+                                              },
+                                       "west":  {
+                                                    "uv":  [
+                                                               0,
+                                                               0,
+                                                               4,
+                                                               4
+                                                           ],
+                                                    "texture":  "#0"
+                                                },
+                                       "down":  {
+                                                    "uv":  [
+                                                               0,
+                                                               0,
+                                                               4,
+                                                               4
+                                                           ],
+                                                    "texture":  "#0"
+                                                },
+                                       "east":  {
+                                                    "uv":  [
+                                                               0,
+                                                               0,
+                                                               4,
+                                                               4
+                                                           ],
+                                                    "texture":  "#0"
+                                                }
+                                   }
+                     },
+                     {
+                         "name":  "arm_b",
+                         "from":  [
+                                      7.2,
+                                      4,
+                                      7.4
+                                  ],
+                         "to":  [
+                                    8.8,
+                                    28,
+                                    8
+                                ],
+                         "faces":  {
+                                       "south":  {
+                                                     "uv":  [
+                                                                0,
+                                                                0,
+                                                                4,
+                                                                4
+                                                            ],
+                                                     "texture":  "#0"
+                                                 },
+                                       "north":  {
+                                                     "uv":  [
+                                                                0,
+                                                                0,
+                                                                4,
+                                                                4
+                                                            ],
+                                                     "texture":  "#0"
+                                                 },
+                                       "up":  {
+                                                  "uv":  [
+                                                             0,
+                                                             0,
+                                                             4,
+                                                             4
+                                                         ],
+                                                  "texture":  "#0"
+                                              },
+                                       "west":  {
+                                                    "uv":  [
+                                                               0,
+                                                               0,
+                                                               4,
+                                                               4
+                                                           ],
+                                                    "texture":  "#0"
+                                                },
+                                       "down":  {
+                                                    "uv":  [
+                                                               0,
+                                                               0,
+                                                               4,
+                                                               4
+                                                           ],
+                                                    "texture":  "#0"
+                                                },
+                                       "east":  {
+                                                    "uv":  [
+                                                               0,
+                                                               0,
+                                                               4,
+                                                               4
+                                                           ],
+                                                    "texture":  "#0"
+                                                }
+                                   }
+                     },
+                     {
+                         "name":  "hinge",
+                         "from":  [
+                                      7,
+                                      13,
+                                      7
+                                  ],
+                         "to":  [
+                                    9,
+                                    15,
+                                    9
+                                ],
+                         "faces":  {
+                                       "south":  {
+                                                     "uv":  [
+                                                                0,
+                                                                0,
+                                                                4,
+                                                                4
+                                                            ],
+                                                     "texture":  "#0"
+                                                 },
+                                       "north":  {
+                                                     "uv":  [
+                                                                0,
+                                                                0,
+                                                                4,
+                                                                4
+                                                            ],
+                                                     "texture":  "#0"
+                                                 },
+                                       "up":  {
+                                                  "uv":  [
+                                                             0,
+                                                             0,
+                                                             4,
+                                                             4
+                                                         ],
+                                                  "texture":  "#0"
+                                              },
+                                       "west":  {
+                                                    "uv":  [
+                                                               0,
+                                                               0,
+                                                               4,
+                                                               4
+                                                           ],
+                                                    "texture":  "#0"
+                                                },
+                                       "down":  {
+                                                    "uv":  [
+                                                               0,
+                                                               0,
+                                                               4,
+                                                               4
+                                                           ],
+                                                    "texture":  "#0"
+                                                },
+                                       "east":  {
+                                                    "uv":  [
+                                                               0,
+                                                               0,
+                                                               4,
+                                                               4
+                                                           ],
+                                                    "texture":  "#0"
+                                                }
+                                   }
+                     }
+                 ],
+    "groups":  [
+                   {
+                       "name":  "arm_a",
+                       "origin":  [
+                                      8,
+                                      14,
+                                      8
+                                  ],
+                       "color":  0,
+                       "children":  [
+                                        0
+                                    ]
+                   },
+                   {
+                       "name":  "arm_b",
+                       "origin":  [
+                                      8,
+                                      14,
+                                      8
+                                  ],
+                       "color":  1,
+                       "children":  [
+                                        1
+                                    ]
+                   },
+                   {
+                       "name":  "hinge",
+                       "origin":  [
+                                      8,
+                                      14,
+                                      8
+                                  ],
+                       "color":  2,
+                       "children":  [
+                                        2
+                                    ]
+                   }
+               ]
+}

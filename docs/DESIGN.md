@@ -58,6 +58,13 @@ Code: `AnvilScene` (client), `AnvilStations` (registers every `tfc:rock/anvil/*`
 - With CI 0.18.28 the scene opens and re-enters repeatedly. Screenshot findings: TFC's own block entity renderer drew the ingot/hammer under our scene (duplicates), hidden by `AnvilRendererMixin` while `SceneVisibility` says a scene drew that anvil in the last 250 ms; the huge dark shape was our hammer drawn at `size 1.4` (ItemPlacer.drawOriented takes world blocks, ~0.2 for a flat item), now `HAMMER_SIZE`/`TONGS_SIZE`.
 - Tunable without a rebuild (edit `run/config/cinteractions_tfc-client.toml` while the game runs): `tuning.topOffset`, `tuning.cameraBack`, `tuning.cameraHeight`.
 
+## Authoring 3D tools in Blockbench (option 1: shapes from Blockbench, colours from the tool's own texture)
+Models live in `src/main/resources/assets/cinteractions_tfc/models/tool/` (`hammer.json`, `tongs.json`), format Java Block/Item. Starter files match the current built-in boxes. The loader that reads them is not written yet; the scene still draws the built-in boxes from `ToolMesh`.
+- Units: 1 unit = 1/16 of a ~0.3-block tool, scaled by the `hammerSize` / `tongsSize` config. The hand holds the tool at model point `[8, 4, 8]`; the loader subtracts that.
+- Hammer: handle along +Y, head long axis along X. Elements named `handle` and `head` (colours come from the sprite's bottom-left and top-right pixels).
+- Tongs: handle end at the grip, jaws toward +Y, arms open along Z. Two groups named `arm_a` and `arm_b`, each with its pivot at the hinge, modelled CLOSED; the scene rotates them about the hinge so the jaws clamp to the held item's thickness (`jawGap`). Other elements are static.
+- Colours: every face is coloured from the tool's own texture via `ToolPalette`, so UVs are ignored in this option.
+
 ## Open
 - Jaw clamping (tongs model per item type) and holding the ingot visibly in the tongs.
 - Hammer swing timing against the server result; impact sparks/sounds.
