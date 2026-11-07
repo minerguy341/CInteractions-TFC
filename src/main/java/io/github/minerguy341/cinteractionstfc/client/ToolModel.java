@@ -332,6 +332,7 @@ final class ToolModel {
     private static void face(PoseStack pose, VertexConsumer vc, TextureAtlasSprite sprite, Part part, String name,
                              float nx, float ny, float nz, int light, float... corners) {
         Face face = part.faces.get(name);
+        if (face == null) return; // a face left out of the file is culled (hidden behind a neighbouring cube)
         float u1, v1, u2, v2;
         if (face != null && face.textured()) {
             u1 = face.u1();
