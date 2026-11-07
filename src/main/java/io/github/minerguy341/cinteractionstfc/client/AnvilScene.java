@@ -122,7 +122,7 @@ public final class AnvilScene extends AddonMenuStation<AnvilContainer> {
     }
 
     private static ToolModel hammerModel() {
-        ToolModel model = ToolModel.get("hammer");
+        ToolModel model = ToolModel.get(AnvilConfig.HAMMER_MODEL.get());
         return model == null || model.isStarter() ? null : model;
     }
 

@@ -20,6 +20,7 @@ public final class AnvilConfig {
     public static final ModConfigSpec.DoubleValue CAMERA_HEIGHT;
     public static final ModConfigSpec.DoubleValue HAMMER_SIZE;
     public static final ModConfigSpec.DoubleValue TONGS_SIZE;
+    public static final ModConfigSpec.ConfigValue<String> HAMMER_MODEL;
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -48,6 +49,9 @@ public final class AnvilConfig {
         TONGS_SIZE = builder
                 .comment("Edge length of the tongs sprite in blocks; also how far the handle reaches from the ingot.")
                 .defineInRange("tongsSize", 0.34, 0.1, 0.8);
+        HAMMER_MODEL = builder
+                .comment("Which model file draws the hammer: \"hammer\" (pixel cubes) or \"hammer_alt\" (one rotated head cube).")
+                .define("hammerModel", "hammer");
         builder.pop();
         SPEC = builder.build();
     }
